@@ -1154,11 +1154,23 @@ pub fn run(command: &Command) -> Result<()> {
                 "FOLKZYGISK_UNAVAILABLE: {}",
                 blockers.join(", ")
             );
-            write_config(Path::new(CONFIG), &Config { enabled: true, ..Default::default() })?;
+            write_config(
+                Path::new(CONFIG),
+                &Config {
+                    enabled: true,
+                    ..Default::default()
+                },
+            )?;
             print_enable_hint();
         }
         Command::Disable => {
-            write_config(Path::new(CONFIG), &Config { enabled: false, ..Default::default() })?;
+            write_config(
+                Path::new(CONFIG),
+                &Config {
+                    enabled: false,
+                    ..Default::default()
+                },
+            )?;
             println!("FolkZygisk disabled for the next boot");
         }
         Command::ResetFailures => {
@@ -1189,7 +1201,14 @@ pub fn run(command: &Command) -> Result<()> {
             guard.mark_handled(&epoch);
             write_json(Path::new(BOOT_GUARD), &guard)
                 .context("FolkZygisk recovery could not reserve the current userspace boot")?;
-            write_config(Path::new(CONFIG), &Config { enabled: true, ..Default::default() }).context(
+            write_config(
+                Path::new(CONFIG),
+                &Config {
+                    enabled: true,
+                    ..Default::default()
+                },
+            )
+            .context(
                 "FolkZygisk could not be enabled; the current userspace boot remains protected",
             )?;
             guard.clear_failures(&epoch);
@@ -1630,7 +1649,13 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("zygisk.json");
         assert!(!read_config(&path)?.enabled);
-        write_config(&path, &Config { enabled: true, ..Default::default() })?;
+        write_config(
+            &path,
+            &Config {
+                enabled: true,
+                ..Default::default()
+            },
+        )?;
         assert!(read_config(&path)?.enabled);
         fs::write(&path, "broken")?;
         assert!(read_config(&path).is_err());
