@@ -1120,6 +1120,13 @@ fn ensure_engine_installable(
     Ok(())
 }
 
+/// Enabling or disabling the engine must not reset unrelated switches.
+fn set_enabled(enabled: bool) -> Result<()> {
+    let mut config = read_config(Path::new(CONFIG))?;
+    config.enabled = enabled;
+    write_config(Path::new(CONFIG), &config)
+}
+
 fn print_enable_hint() {
     match providers(Path::new(MODULES), Path::new(UPDATES)) {
         Ok(external) if !external.is_empty() => println!(
@@ -1155,23 +1162,11 @@ pub fn run(command: &Command) -> Result<()> {
                 "FOLKZYGISK_UNAVAILABLE: {}",
                 blockers.join(", ")
             );
-            write_config(
-                Path::new(CONFIG),
-                &Config {
-                    enabled: true,
-                    ..Default::default()
-                },
-            )?;
+            set_enabled(true)?;
             print_enable_hint();
         }
         Command::Disable => {
-            write_config(
-                Path::new(CONFIG),
-                &Config {
-                    enabled: false,
-                    ..Default::default()
-                },
-            )?;
+            set_enabled(false)?;
             println!("FolkZygisk disabled for the next boot");
         }
         Command::ResetFailures => {
