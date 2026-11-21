@@ -19,10 +19,11 @@ all:
 			ARCH=$$arch NDK_PATH=$(NDK_PATH) API_LEVEL=$(API_LEVEL) \
 			ZKSU_VERSION=FolkZygisk-$(VER_NAME) arch; \
 		out=$(STAGE_DIR)/$$arch; \
-		mkdir -p $$out/bin $$out/$$libdir $$out/licenses/CSOLoader $$out/licenses/PLTI; \
+		mkdir -p $$out/bin $$out/$$libdir $$out/licenses/CSOLoader $$out/licenses/PLTI $$out/licenses/Dobby; \
 		cp LICENSE NOTICE UPSTREAM.md $$out/; \
 		cp loader/src/external/csoloader/LICENSE $$out/licenses/CSOLoader/; \
 		cp loader/src/external/plti/LICENSE $$out/licenses/PLTI/; \
+		cp loader/src/external/dobby/LICENSE $$out/licenses/Dobby/; \
 		install -m 0755 $(BUILD_DIR)/obj/$(BUILD_TYPE)/loader/$$arch/stripped/libzygisk_ptrace.so $$out/bin/zygisk-ptrace$$bits; \
 		install -m 0755 $(BUILD_DIR)/obj/$(BUILD_TYPE)/zygiskd/$$arch/zygiskd $$out/bin/zygiskd$$bits; \
 		install -m 0644 $(BUILD_DIR)/obj/$(BUILD_TYPE)/loader/$$arch/stripped/libzygisk.so $$out/$$libdir/libzygisk.so; \

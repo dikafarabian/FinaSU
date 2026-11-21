@@ -37,7 +37,7 @@ def package(stage, assets, target):
             validate_elf(source, elf_class, machine)
             files.append((source, relative, 0o755 if relative.startswith("bin/") else 0o644))
     notices = ("LICENSE", "NOTICE", "UPSTREAM.md", "licenses/CSOLoader/LICENSE",
-               "licenses/PLTI/LICENSE")
+               "licenses/PLTI/LICENSE", "licenses/Dobby/LICENSE")
     for relative in notices:
         source = stage / pairs[0][0] / relative
         if not source.is_file() or not source.read_bytes():

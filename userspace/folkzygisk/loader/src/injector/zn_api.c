@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include <csoloader.h>
+#include <dobby.h>
 #include <plti.h>
 
 #include "daemon.h"
@@ -84,18 +85,20 @@ static int zn_plt_hook(void *base_addr, const char *symbol, void *hook_handler,
   return plti_add_hook(&g_plti, key, symbol, hook_handler, original) ? ZN_SUCCESS : ZN_FAILED;
 }
 
-/* Not wired yet: an inline hook engine with ARM64 relocation support is not
-   vendored, so callers get a definite failure instead of a silent no-op. */
+/* Very short leaf functions can be too small to relocate; the engine reports
+   that as a failure rather than leaving a half-patched prologue. */
 static int zn_inline_hook(void *target, void *addr, void **original) {
-  (void)target;
-  (void)addr;
-  (void)original;
-  return ZN_FAILED;
+  if (!target || !addr) return ZN_FAILED;
+
+  return DobbyHook(target, (dobby_dummy_func_t)addr, (dobby_dummy_func_t *)original) == RS_SUCCESS
+             ? ZN_SUCCESS
+             : ZN_FAILED;
 }
 
 static int zn_inline_unhook(void *target) {
-  (void)target;
-  return ZN_FAILED;
+  if (!target) return ZN_FAILED;
+
+  return DobbyDestroy(target) == RS_SUCCESS ? ZN_SUCCESS : ZN_FAILED;
 }
 
 static struct ZnSymbolResolver *zn_new_symbol_resolver(const char *path, void *base_addr) {

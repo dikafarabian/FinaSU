@@ -26,7 +26,7 @@ class PackageTest(unittest.TestCase):
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(header)
                 for relative in ("LICENSE", "NOTICE", "UPSTREAM.md", "licenses/CSOLoader/LICENSE",
-                                 "licenses/PLTI/LICENSE"):
+                                 "licenses/PLTI/LICENSE", "licenses/Dobby/LICENSE"):
                     path = stage / abi / relative
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text(relative)
@@ -38,7 +38,7 @@ class PackageTest(unittest.TestCase):
             self.assertFalse((assets / "folkzygisk").exists())
             wrong.write_bytes(good)
             result = PACKAGE.package(stage, assets, "aarch64")
-            self.assertEqual(len(list(result.rglob("*"))) - len([p for p in result.rglob("*") if p.is_dir()]), 12)
+            self.assertEqual(len(list(result.rglob("*"))) - len([p for p in result.rglob("*") if p.is_dir()]), 13)
             self.assertEqual((result / "bin/zygiskd32").stat().st_mode & 0o777, 0o755)
             self.assertEqual((result / "lib64/libzygisk.so").stat().st_mode & 0o777, 0o644)
             with self.assertRaises(FileExistsError):

@@ -154,3 +154,10 @@ or app profile is changed. Runtime feature changes between the query and
 specialization are not synchronized. Acceptance on other devices, policies and
 plugin-requested unmount behavior remains necessary; one device is not universal
 compatibility evidence.
+
+## Dobby
+
+`loader/src/external/dobby` vendors Dobby at c1da0315d7a2069bde2ab432e45d4ab6df91237a
+(2025-06-05), used only for the Zygisk Next inline hook slots. Sources are unmodified; the
+library is built per ABI by `loader/Makefile` through its own CMake project. Apache-2.0, see
+`licenses/Dobby/LICENSE`.

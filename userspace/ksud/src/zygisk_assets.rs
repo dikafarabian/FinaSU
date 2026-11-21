@@ -6,7 +6,7 @@ use std::io::Write;
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 
-pub const FILES: [&str; 12] = [
+pub const FILES: [&str; 13] = [
     "bin/zygisk-ptrace64",
     "bin/zygiskd64",
     "lib64/libzygisk.so",
@@ -19,6 +19,7 @@ pub const FILES: [&str; 12] = [
     "AGPL-3.0.txt",
     "licenses/CSOLoader/LICENSE",
     "licenses/PLTI/LICENSE",
+    "licenses/Dobby/LICENSE",
 ];
 
 fn mode(name: &str) -> u32 {
@@ -119,6 +120,7 @@ pub fn install(
             "lib64",
             "licenses/CSOLoader",
             "licenses/PLTI",
+            "licenses/Dobby",
             "licenses",
         ] {
             File::open(staging.path().join(directory))?.sync_all()?;

@@ -41,6 +41,8 @@ PTRACER_OBJS = $(patsubst src/ptracer/%.c,$(OBJ_DIR)/ptracer/%.o,$(PTRACER_SRCS)
 
 PLTI_LIB = $(BUILD_DIR)/obj/$(BUILD_TYPE)/plti/$(ARCH)/libplti.a
 CSOLOADER_LIB = $(BUILD_DIR)/obj/$(BUILD_TYPE)/csoloader/$(ARCH)/libcsoloader.a
+DOBBY_LIB = $(BUILD_DIR)/obj/$(BUILD_TYPE)/dobby/$(ARCH)/libdobby.a
+DOBBY_DIR = src/external/dobby
 
 LIBCOMMON = $(OBJ_DIR)/libcommon.a
 LIBZYGISK = $(OBJ_DIR)/libzygisk.so
@@ -52,7 +54,8 @@ PLTI_DIR = src/external/plti
 CSOLOADER_DIR = src/external/csoloader
 
 COMMON_INCLUDES = -Isrc/include -I../include
-INJECTOR_INCLUDES = -Isrc/include -I../include -I$(PLTI_DIR)/src -I$(CSOLOADER_DIR)/include
+INJECTOR_INCLUDES = -Isrc/include -I../include -I$(PLTI_DIR)/src -I$(CSOLOADER_DIR)/include \
+					-I$(DOBBY_DIR)/include
 
 .PHONY: all arch clean
 
@@ -76,6 +79,16 @@ $(PLTI_LIB):
 	$(MAKE) -C $(PLTI_DIR) BUILD_TYPE=$(BUILD_TYPE) ARCH=$(ARCH) \
 		NDK_PATH=$(NDK_PATH) API_LEVEL=$(API_LEVEL)              \
 		out=$(BUILD_DIR)/obj/$(BUILD_TYPE)/plti/$(ARCH)
+
+$(DOBBY_LIB):
+	@mkdir -p $(dir $@)
+	cmake -S $(DOBBY_DIR) -B $(BUILD_DIR)/obj/$(BUILD_TYPE)/dobby/cmake-$(ARCH) \
+		-DCMAKE_TOOLCHAIN_FILE=$(NDK_PATH)/build/cmake/android.toolchain.cmake \
+		-DANDROID_ABI=$(ARCH) -DANDROID_PLATFORM=android-$(API_LEVEL) \
+		-DCMAKE_BUILD_TYPE=Release -DDOBBY_DEBUG=OFF -DDOBBY_GENERATE_SHARED=OFF \
+		>/dev/null
+	cmake --build $(BUILD_DIR)/obj/$(BUILD_TYPE)/dobby/cmake-$(ARCH) -j$$(nproc) >/dev/null
+	cp $(BUILD_DIR)/obj/$(BUILD_TYPE)/dobby/cmake-$(ARCH)/libdobby.a $@
 
 $(CSOLOADER_LIB):
 	@mkdir -p $(dir $@)
@@ -102,12 +115,12 @@ $(LIBCOMMON): $(COMMON_OBJS)
 	@mkdir -p $(dir $@)
 	$(AR) rcs $@ $^
 
-$(LIBZYGISK): $(INJECTOR_OBJS) $(LIBCOMMON) $(PLTI_LIB) $(CSOLOADER_LIB)
+$(LIBZYGISK): $(INJECTOR_OBJS) $(LIBCOMMON) $(PLTI_LIB) $(CSOLOADER_LIB) $(DOBBY_LIB)
 	@mkdir -p $(dir $@)
 	$(CC_ARCH) -fPIC -shared -Wl,-soname,libzygisk.so              \
 		$(COMMON_LDFLAGS) $(TYPE_LDFLAGS) -nostartfiles            \
-		$(INJECTOR_OBJS) $(LIBCOMMON) $(PLTI_LIB) $(CSOLOADER_LIB) \
-		-llog -lm -o $@
+		$(INJECTOR_OBJS) $(LIBCOMMON) $(PLTI_LIB) $(CSOLOADER_LIB) $(DOBBY_LIB) \
+		-lc++_static -lc++abi -llog -lm -o $@
 
 $(LIBPTRACE): $(PTRACER_OBJS) $(LIBCOMMON)
 	@mkdir -p $(dir $@)
