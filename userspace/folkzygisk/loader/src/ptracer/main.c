@@ -6,6 +6,7 @@
 
 #include "daemon.h"
 #include "monitor.h"
+#include "zn_spawner.h"
 
 int main(int argc, char **argv) {
   printf("The ReZygisk Tracer %s\n\n", ZKSU_VERSION);
@@ -14,6 +15,16 @@ int main(int argc, char **argv) {
     init_monitor();
 
     return 0;
+  } else if (argc == 4 && strcmp(argv[1], "zn-spawner") == 0) {
+      char *end;
+      errno = 0;
+      long pid = strtol(argv[2], &end, 10);
+      if (errno || *end || pid <= 0 || pid > INT_MAX) return 1;
+      bool ok = zn_spawner_inject((int)pid, argv[3]);
+
+      fprintf(stderr, ok ? "zn-spawner: injected %ld\n" : "zn-spawner: injection failed for %ld\n", pid);
+
+      return ok ? 0 : 1;
   } else if (argc >= 3 && strcmp(argv[1], "trace") == 0) {
       bool is_tango = false;
       bool do_restart = false;

@@ -20,6 +20,7 @@ const ENGINE: &str = "/data/adb/ksu/bin/folkzygisk";
 const MODULES: &str = "/data/adb/modules";
 const UPDATES: &str = "/data/adb/modules_update";
 const RUNTIME: &str = "/data/adb/ksu/.zygisk/state.json";
+const SPAWNER_MARKER: &str = "/data/adb/ksu/spawner_runtime";
 const BOOT_GUARD: &str = "/data/adb/ksu/zygisk-boot.json";
 const FAILURE_LIMIT: u32 = 3;
 
@@ -237,6 +238,7 @@ pub fn detach_from_service_cgroup() -> std::io::Result<()> {
 /// is reset on every reboot, so this must be applied on each boot before the monitor starts.
 /// `unlabeled`/`sys_chroot` cover the daemon's mount-namespace fd (an `nsfs` inode) that the
 /// zygote opens to switch into the module-free namespace at a module's request.
+///
 #[cfg(target_os = "android")]
 const SEPOLICY_RULES: &str = "\
 type zygisk_file file_type
@@ -260,9 +262,84 @@ allow zygote zygote process execmem
 allow system_server system_server process execmem
 ";
 
+/// Applied only when some module declares the HyperOS spawner: that target's
+/// domain must open the engine, map the module and reach the daemon.
 #[cfg(target_os = "android")]
-fn apply_sepolicy_rules() -> Result<()> {
-    crate::sepolicy::live_patch(SEPOLICY_RULES).context("Apply FolkZygisk SELinux policy rules")
+const SPAWNER_SEPOLICY_RULES: &str = "\
+allow domain adb_data_file dir search
+allow domain adb_data_file file { read open getattr map }
+allow domain ksu dir search
+allow domain ksu file { read open getattr }
+allow domain system_file dir search
+allow domain system_file file { read open getattr map execute }
+allow domain system_lib_file dir search
+allow domain system_lib_file file { read open getattr map execute }
+allow domain zygisk_file sock_file { read write }
+allow domain zygote unix_stream_socket connectto
+";
+
+/// True when a module declares the HyperOS spawner as a ZN target.
+#[cfg(target_os = "android")]
+fn spawner_declared() -> bool {
+    const MODULES: &str = "/data/adb/modules";
+
+    let Ok(entries) = std::fs::read_dir(MODULES) else {
+        return false;
+    };
+
+    for entry in entries.flatten() {
+        let dir = entry.path();
+        if !["disable", "remove"]
+            .iter()
+            .all(|marker| matches!(dir.join(marker).try_exists(), Ok(false)))
+        {
+            continue;
+        }
+        let manifest = dir.join("zn_modules.txt");
+        let Ok(text) = std::fs::read_to_string(&manifest) else {
+            continue;
+        };
+
+        for line in text.lines() {
+            let line = line.trim();
+            if line.starts_with('#') || line.is_empty() {
+                continue;
+            }
+
+            let mut tokens = line.split_ascii_whitespace();
+            let Some(target) = tokens.next() else {
+                continue;
+            };
+
+            if target == "path=/system_ext/bin/hyos_spawner" || target == "name=hyos_spawner" {
+                let library = match tokens.next() {
+                    Some("companion") => tokens.next(),
+                    value => value,
+                };
+                if let Some(lib) = library
+                    && tokens.next().is_none()
+                    && lib.as_bytes().ends_with(b".so")
+                    && lib.split('/').all(|part| !matches!(part, "" | "." | ".."))
+                    && dir.join(lib).is_file()
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
+#[cfg(target_os = "android")]
+fn apply_sepolicy_rules(spawner_runtime: bool) -> Result<()> {
+    let mut rules = SEPOLICY_RULES.to_owned();
+
+    if spawner_runtime && spawner_declared() {
+        rules.push_str(SPAWNER_SEPOLICY_RULES);
+    }
+
+    crate::sepolicy::live_patch(&rules).context("Apply FolkZygisk SELinux policy rules")
 }
 
 #[cfg(target_os = "android")]
@@ -281,6 +358,13 @@ pub fn post_fs_data(safe_mode: bool) -> Result<()> {
     if !providers(Path::new(MODULES), Path::new(UPDATES))?.is_empty() {
         log::info!("External Zygisk provider active; built-in FolkZygisk steps aside");
         return Ok(());
+    }
+
+    let spawner_runtime = read_config(Path::new(CONFIG))?.spawner_runtime;
+    if spawner_runtime {
+        let _ = std::fs::File::create(SPAWNER_MARKER);
+    } else {
+        let _ = std::fs::remove_file(SPAWNER_MARKER);
     }
 
     let epoch = crate::startup_epoch::current_or_create()?;
@@ -418,7 +502,8 @@ fn start_monitor() -> Result<()> {
     use std::time::{Duration, Instant};
     // The zygote must be able to search the engine's parent directories and read the injected
     // library and daemon socket; without these rules the injected remote `openat` fails with EACCES.
-    if let Err(e) = apply_sepolicy_rules() {
+    let spawner_runtime = read_config(Path::new(CONFIG))?.spawner_runtime;
+    if let Err(e) = apply_sepolicy_rules(spawner_runtime) {
         log::warn!("FolkZygisk sepolicy rules failed to apply: {e}");
     }
     let executable = if cfg!(target_pointer_width = "64") {
@@ -677,12 +762,20 @@ pub enum Command {
     Recover,
     /// Install embedded engine assets without enabling or starting injection
     InstallEngine,
+    /// Toggle the unverified HyperOS spawner path for the next boot
+    SpawnerRuntime {
+        #[arg(action = clap::ArgAction::Set, value_parser = clap::builder::BoolishValueParser::new())]
+        enabled: bool,
+    },
 }
 
 #[derive(Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct Config {
     enabled: bool,
+    /* Unverified HyperOS spawner path; off unless the user opts in. */
+    #[serde(default)]
+    spawner_runtime: bool,
 }
 
 #[derive(Serialize)]
@@ -694,6 +787,7 @@ pub struct ProviderStatus {
     pub external_providers: Vec<String>,
     // Injection requires a current-boot acknowledgement and matching processes.
     pub injection_state: &'static str,
+    pub spawner_runtime: bool,
     // Unknown until boot integration records the effective provider selection.
     pub reboot_required: Option<bool>,
     pub runtime: Option<RuntimeStatus>,
@@ -724,6 +818,7 @@ pub fn provider_status() -> Result<ProviderStatus> {
         enable_blockers: enable_blockers(engine, blocked),
         external_providers: external,
         injection_state: injection_state(runtime.as_ref()),
+        spawner_runtime: read_config(Path::new(CONFIG))?.spawner_runtime,
         reboot_required: update_pending.then_some(true),
         runtime,
         startup_failures: guard.failures,
@@ -1059,11 +1154,11 @@ pub fn run(command: &Command) -> Result<()> {
                 "FOLKZYGISK_UNAVAILABLE: {}",
                 blockers.join(", ")
             );
-            write_config(Path::new(CONFIG), &Config { enabled: true })?;
+            write_config(Path::new(CONFIG), &Config { enabled: true, ..Default::default() })?;
             print_enable_hint();
         }
         Command::Disable => {
-            write_config(Path::new(CONFIG), &Config { enabled: false })?;
+            write_config(Path::new(CONFIG), &Config { enabled: false, ..Default::default() })?;
             println!("FolkZygisk disabled for the next boot");
         }
         Command::ResetFailures => {
@@ -1094,7 +1189,7 @@ pub fn run(command: &Command) -> Result<()> {
             guard.mark_handled(&epoch);
             write_json(Path::new(BOOT_GUARD), &guard)
                 .context("FolkZygisk recovery could not reserve the current userspace boot")?;
-            write_config(Path::new(CONFIG), &Config { enabled: true }).context(
+            write_config(Path::new(CONFIG), &Config { enabled: true, ..Default::default() }).context(
                 "FolkZygisk could not be enabled; the current userspace boot remains protected",
             )?;
             guard.clear_failures(&epoch);
@@ -1108,6 +1203,20 @@ pub fn run(command: &Command) -> Result<()> {
                 println!("FolkZygisk recovered; restart required");
             }
             print_enable_hint();
+        }
+        Command::SpawnerRuntime { enabled } => {
+            let mut config = read_config(Path::new(CONFIG))?;
+            config.spawner_runtime = *enabled;
+            write_config(Path::new(CONFIG), &config)?;
+            if *enabled {
+                let _ = std::fs::File::create(SPAWNER_MARKER);
+            } else {
+                let _ = std::fs::remove_file(SPAWNER_MARKER);
+            }
+            println!(
+                "FolkZygisk HyperOS spawner path {} for the next boot",
+                if *enabled { "enabled" } else { "disabled" }
+            );
         }
         Command::InstallEngine => {
             let epoch = crate::startup_epoch::current_or_create()?;
@@ -1521,7 +1630,7 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let path = dir.path().join("zygisk.json");
         assert!(!read_config(&path)?.enabled);
-        write_config(&path, &Config { enabled: true })?;
+        write_config(&path, &Config { enabled: true, ..Default::default() })?;
         assert!(read_config(&path)?.enabled);
         fs::write(&path, "broken")?;
         assert!(read_config(&path).is_err());

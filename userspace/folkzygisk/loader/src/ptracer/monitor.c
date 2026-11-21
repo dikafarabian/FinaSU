@@ -19,6 +19,8 @@
 
 #include "monitor.h"
 
+static bool spawner_attach_launch(int pid, const char *program);
+
 
 
 
@@ -820,6 +822,17 @@ void sigchld_listener_callback() {
             }
           } while (false);
 
+          if (tracing_state == TRACING && tracer == NULL && spawner_attach_launch(pid, program)) {
+            for (size_t i = 0; i < sigchld_process_count; i++) {
+              if (sigchld_process[i] != pid) continue;
+
+              sigchld_process[i] = 0;
+
+              break;
+            }
+
+            continue;
+          }
         } else {
           char status_str[64];
           parse_status(sigchld_status, status_str, sizeof(status_str));
@@ -843,6 +856,51 @@ void sigchld_listener_callback() {
       }
     }
   }
+}
+
+/* Only start the injector when a manifest actually declares the spawner. */
+static bool spawner_declared(void) {
+  struct zn_module_ref ref;
+
+  if (rezygiskd_read_zn_modules("hyos_spawner", HYOS_SPAWNER_PATH, &ref, 1) == 0) return false;
+
+  close(ref.fd);
+
+  return true;
+}
+
+/* Written by ksud each boot while the HyperOS path is enabled. */
+static bool spawner_runtime_enabled(void) {
+  return access(FOLKZYGISK_SPAWNER_MARKER, F_OK) == 0;
+}
+
+static bool spawner_attach_launch(int pid, const char *program) {
+  if (!spawner_runtime_enabled()) return false;
+  if (strcmp(program, HYOS_SPAWNER_PATH) != 0 || !spawner_declared()) return false;
+
+  /* Resume first: the injector waits for a loaded image and attaches itself. */
+  if (ptrace(PTRACE_DETACH, pid, 0, 0) == -1) {
+    PLOGE("failed to detach spawner %d", pid);
+
+    return false;
+  }
+
+  char pid_str[32];
+  snprintf(pid_str, sizeof(pid_str), "%d", pid);
+
+  const char *tracer = FOLKZYGISK_TRACER_BASE "64";
+  const char *library = FOLKZYGISK_ENGINE_DIR "/lib64/libzygisk.so";
+
+  pid_t child = fork_dont_care();
+  if (child == 0) {
+    LOGI("zn spawner attach: %s zn-spawner %s", tracer, pid_str);
+
+    execl(tracer, basename(tracer), "zn-spawner", pid_str, library, NULL);
+
+    _exit(1);
+  }
+
+  return child > 0;
 }
 
 void sigchld_listener_stop() {

@@ -6,6 +6,8 @@
 
 #include <fcntl.h>
 #include <limits.h>
+#include <sys/prctl.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 #include <csoloader.h>
@@ -199,6 +201,143 @@ static void *zn_symbol_lookup(struct ZnSymbolResolver *resolver, const char *nam
 }
 
 
+#define ZN_HYOS_MAX_MODULES 16
+
+static struct ZygiskNextHyosModule g_hyos_modules[ZN_HYOS_MAX_MODULES];
+static size_t g_hyos_module_count;
+static bool g_hyos_hooks_installed;
+static bool g_hyos_delivered;
+static pid_t g_spawner_pid;
+
+static bool is_hyos_spawner(void) {
+  char path[sizeof(HYOS_SPAWNER_PATH)];
+  return readlink("/proc/self/exe", path, sizeof(path)) == sizeof(path) - 1 &&
+         memcmp(path, HYOS_SPAWNER_PATH, sizeof(path) - 1) == 0;
+}
+
+static uintptr_t spawner_image_base(void) {
+  FILE *maps = fopen("/proc/self/maps", "re");
+  if (!maps) return 0;
+
+  uintptr_t base = 0;
+  char line[512];
+  char path[PATH_MAX];
+
+  while (fgets(line, sizeof(line), maps) != NULL) {
+    unsigned long start = 0, end = 0;
+    char perms[8] = { 0 };
+
+    if (sscanf(line, "%lx-%lx %7s %*s %*s %*s %4095s", &start, &end, perms, path) != 4) continue;
+    if (strcmp(path, HYOS_SPAWNER_PATH) != 0) continue;
+
+    base = (uintptr_t)start;
+    break;
+  }
+
+  fclose(maps);
+
+  return base;
+}
+
+static const char *hyos_process_name(void) {
+  static char name[64];
+
+  if (prctl(PR_GET_NAME, name, 0, 0, 0) != 0) name[0] = '\0';
+
+  return name;
+}
+
+static void deliver_app_specialized(const char *package_name, const char *se_info) {
+  /* The callback belongs to the specialized child only. */
+  if (g_spawner_pid == 0 || (pid_t)syscall(__NR_getpid) == g_spawner_pid) return;
+  if (g_hyos_delivered || g_hyos_module_count == 0) return;
+
+  g_hyos_delivered = true;
+
+  char process_name[256];
+  char package_copy[256];
+  char se_info_copy[128];
+
+  snprintf(process_name, sizeof(process_name), "%s", hyos_process_name());
+  snprintf(package_copy, sizeof(package_copy), "%s", package_name ? package_name : "");
+  snprintf(se_info_copy, sizeof(se_info_copy), "%s", se_info ? se_info : "");
+  if (process_name[0] == '\0') snprintf(process_name, sizeof(process_name), "hyos_app");
+
+  const struct ZnHyosAppSpecializeArgs args = {
+    .process_name = process_name,
+    .package_name = package_copy,
+    .se_info = se_info_copy,
+  };
+
+  for (size_t i = 0; i < g_hyos_module_count; ++i) {
+    if (g_hyos_modules[i].onAppSpecialized) g_hyos_modules[i].onAppSpecialized(&args);
+  }
+}
+
+typedef int (*hyos_setcontext_fn)(uid_t uid, int is_system_server, const char *se_info,
+                                  const char *pkg_name);
+
+static hyos_setcontext_fn g_original_setcontext;
+
+static int hyos_setcontext_hook(uid_t uid, int is_system_server, const char *se_info,
+                                const char *pkg_name) {
+  int result = g_original_setcontext ? g_original_setcontext(uid, is_system_server, se_info, pkg_name)
+                                     : -1;
+  if (result == 0) deliver_app_specialized(pkg_name, se_info);
+
+  return result;
+}
+
+static void install_hyos_hooks(void) {
+  if (g_hyos_hooks_installed) return;
+
+  uintptr_t base = spawner_image_base();
+  if (!base) {
+    LOGE("ZN: cannot locate the spawner image for hooking");
+
+    return;
+  }
+
+  if (zn_plt_hook((void *)base, "selinux_android_setcontext", (void *)hyos_setcontext_hook,
+                  (void **)&g_original_setcontext) != ZN_SUCCESS) {
+    LOGE("ZN: cannot hook selinux_android_setcontext; callbacks stay disabled");
+
+    return;
+  }
+
+  LOGI("ZN: HyperOS runtime hook installed");
+  g_hyos_hooks_installed = true;
+}
+
+static int zn_register_hyos_module(const void *value) {
+  const struct ZygiskNextHyosModule *module = value;
+
+  if (!module || !module->onAppSpecialized) return ZN_FAILED;
+  if (module->target_api_version < 1 ||
+      module->target_api_version > ZYGISK_NEXT_HYOS_API_VERSION) {
+    LOGE("ZN: unsupported HyperOS api version %d", module->target_api_version);
+
+    return ZN_FAILED;
+  }
+  if (g_hyos_module_count >= ZN_HYOS_MAX_MODULES) return ZN_FAILED;
+
+  install_hyos_hooks();
+  if (!g_hyos_hooks_installed) return ZN_FAILED;
+  g_hyos_modules[g_hyos_module_count++] = *module;
+
+  return ZN_SUCCESS;
+}
+
+static const struct ZygiskNextRuntime *zn_get_runtime(void) {
+  static const struct ZygiskNextRuntime runtime = {
+    .type = ZN_RUNTIME_HYOS,
+    .api_version = ZYGISK_NEXT_HYOS_API_VERSION,
+    .registerModule = zn_register_hyos_module,
+  };
+
+  return is_hyos_spawner() ? &runtime : NULL;
+}
+
 static int zn_connect_companion(void *handle);
 
 static const struct ZygiskNextAPI g_api = {
@@ -211,7 +350,7 @@ static const struct ZygiskNextAPI g_api = {
     .symbolLookup = zn_symbol_lookup,
     .forEachSymbols = zn_for_each_symbol,
     .connectCompanion = zn_connect_companion,
-    .getRuntime = NULL,
+    .getRuntime = zn_get_runtime,
 };
 
 static int zn_connect_companion(void *handle) {
@@ -244,6 +383,8 @@ bool zn_process_is_target(void) {
 }
 
 void zn_load_modules(void) {
+  if (g_spawner_pid == 0) g_spawner_pid = (pid_t)syscall(__NR_getpid);
+
   if (!zn_process_is_target()) return;
 
   char name[256];
