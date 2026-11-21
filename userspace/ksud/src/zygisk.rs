@@ -770,7 +770,6 @@ pub enum Command {
 }
 
 #[derive(Default, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
 struct Config {
     enabled: bool,
     /* Unverified HyperOS spawner path; off unless the user opts in. */
