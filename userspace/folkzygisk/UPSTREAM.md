@@ -158,6 +158,6 @@ compatibility evidence.
 ## Dobby
 
 `loader/src/external/dobby` vendors Dobby at c1da0315d7a2069bde2ab432e45d4ab6df91237a
-(2025-06-05), used only for the Zygisk Next inline hook slots. Sources are unmodified; the
-library is built per ABI by `loader/Makefile` through its own CMake project. Apache-2.0, see
+(2025-06-05), used only for the Zygisk Next inline hook slots. Only the build inputs are vendored (tests, docs, examples and helper scripts are excluded);
+the library is built per ABI by `loader/Makefile` through its own CMake project. Apache-2.0, see
 `licenses/Dobby/LICENSE`.

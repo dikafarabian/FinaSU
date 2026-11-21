@@ -779,6 +779,7 @@ struct Config {
 }
 
 #[derive(Serialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ProviderStatus {
     pub schema_version: u32,
     pub enabled: bool,
