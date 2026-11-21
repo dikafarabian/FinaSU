@@ -2,7 +2,9 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
+#include <dirent.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 
@@ -874,6 +876,129 @@ static bool spawner_runtime_enabled(void) {
   return access(FOLKZYGISK_SPAWNER_MARKER, F_OK) == 0;
 }
 
+#define SPAWNER_SCAN_MAX 8
+
+struct spawner_seen {
+  pid_t pid;
+  unsigned long long start;
+};
+
+static struct spawner_seen spawner_seen[SPAWNER_SCAN_MAX];
+static size_t spawner_seen_count;
+
+static bool spawner_seen_before(pid_t pid, unsigned long long start) {
+  for (size_t i = 0; i < spawner_seen_count; ++i) {
+    if (spawner_seen[i].pid == pid && spawner_seen[i].start == start) return true;
+  }
+
+  return false;
+}
+
+static void spawner_remember(pid_t pid, unsigned long long start) {
+  if (spawner_seen_count < SPAWNER_SCAN_MAX) {
+    spawner_seen[spawner_seen_count].pid = pid;
+    spawner_seen[spawner_seen_count].start = start;
+    ++spawner_seen_count;
+
+    return;
+  }
+
+  memmove(&spawner_seen[0], &spawner_seen[1], sizeof(spawner_seen[0]) * (SPAWNER_SCAN_MAX - 1));
+  spawner_seen[SPAWNER_SCAN_MAX - 1].pid = pid;
+  spawner_seen[SPAWNER_SCAN_MAX - 1].start = start;
+}
+
+static bool spawner_pid_has_lib(pid_t pid) {
+  char path[64];
+  char line[512];
+
+  snprintf(path, sizeof(path), "/proc/%d/maps", pid);
+  FILE *maps = fopen(path, "re");
+  if (maps == NULL) return true;
+
+  bool found = false;
+  while (!found && fgets(line, sizeof(line), maps) != NULL) found = strstr(line, "libzygisk.so") != NULL;
+
+  fclose(maps);
+
+  return found;
+}
+
+static void spawner_launch_tracer(pid_t pid) {
+  char pid_str[32];
+  snprintf(pid_str, sizeof(pid_str), "%d", pid);
+
+  const char *tracer = FOLKZYGISK_TRACER_BASE "64";
+  const char *library = FOLKZYGISK_ENGINE_DIR "/lib64/libzygisk.so";
+
+  pid_t child = fork_dont_care();
+  if (child == 0) {
+    execl(tracer, basename(tracer), "zn-spawner", pid_str, library, NULL);
+
+    _exit(1);
+  }
+}
+
+/* The spawner is an init child, but the switch can be flipped after it started,
+   so exec alone misses it. Scan by executable identity, never by cmdline: the
+   regular usap pool shares the cmdline but not the image. */
+static void *spawner_scan_thread(void *unused) {
+  (void)unused;
+
+  while (1) {
+    sleep(3);
+
+    if (!spawner_runtime_enabled() || !spawner_declared()) continue;
+
+    DIR *proc = opendir("/proc");
+    if (proc == NULL) continue;
+
+    struct dirent *entry;
+    while ((entry = readdir(proc)) != NULL) {
+      char *end = NULL;
+      long value = strtol(entry->d_name, &end, 10);
+      if (value <= 1 || end == NULL || *end != '\0') continue;
+
+      pid_t pid = (pid_t)value;
+      char link[64];
+      char exe[PATH_MAX];
+      snprintf(link, sizeof(link), "/proc/%d/exe", pid);
+
+      ssize_t len = readlink(link, exe, sizeof(exe) - 1);
+      if (len <= 0) continue;
+      exe[len] = '\0';
+      if (strcmp(exe, HYOS_SPAWNER_PATH) != 0) continue;
+
+      unsigned long long start = process_start_ticks(pid);
+      if (start == 0 || spawner_seen_before(pid, start)) continue;
+
+      spawner_remember(pid, start);
+      if (spawner_pid_has_lib(pid)) continue;
+
+      LOGI("zn spawner scan: attaching %d", pid);
+      spawner_launch_tracer(pid);
+    }
+
+    closedir(proc);
+  }
+
+  return NULL;
+}
+
+static void spawner_scan_start(void) {
+  static bool started;
+
+  if (started) return;
+  started = true;
+
+  pthread_t thread;
+  if (pthread_create(&thread, NULL, spawner_scan_thread, NULL) == 0) {
+    pthread_detach(thread);
+  } else {
+    LOGE("cannot start the spawner scan thread");
+  }
+}
+
 static bool spawner_attach_launch(int pid, const char *program) {
   if (!spawner_runtime_enabled()) return false;
   if (strcmp(program, HYOS_SPAWNER_PATH) != 0 || !spawner_declared()) return false;
@@ -885,22 +1010,10 @@ static bool spawner_attach_launch(int pid, const char *program) {
     return false;
   }
 
-  char pid_str[32];
-  snprintf(pid_str, sizeof(pid_str), "%d", pid);
+  spawner_remember(pid, process_start_ticks(pid));
+  spawner_launch_tracer(pid);
 
-  const char *tracer = FOLKZYGISK_TRACER_BASE "64";
-  const char *library = FOLKZYGISK_ENGINE_DIR "/lib64/libzygisk.so";
-
-  pid_t child = fork_dont_care();
-  if (child == 0) {
-    LOGI("zn spawner attach: %s zn-spawner %s", tracer, pid_str);
-
-    execl(tracer, basename(tracer), "zn-spawner", pid_str, library, NULL);
-
-    _exit(1);
-  }
-
-  return child > 0;
+  return true;
 }
 
 void sigchld_listener_stop() {
@@ -1050,6 +1163,10 @@ void init_monitor() {
 
   monitor_ready = true;
   if (!update_status(NULL)) exit(1);
+
+  /* Started only after the daemons and signal handling exist: forking from a
+     thread would leave the children without the process's other threads. */
+  if (spawner_runtime_enabled()) spawner_scan_start();
 
   monitor_events_loop();
 
