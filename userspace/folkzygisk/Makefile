@@ -27,3 +27,9 @@ all:
 		install -m 0755 $(BUILD_DIR)/obj/$(BUILD_TYPE)/zygiskd/$$arch/zygiskd $$out/bin/zygiskd$$bits; \
 		install -m 0644 $(BUILD_DIR)/obj/$(BUILD_TYPE)/loader/$$arch/stripped/libzygisk.so $$out/$$libdir/libzygisk.so; \
 	done
+
+.PHONY: zn-manifest-check
+zn-manifest-check:
+	mkdir -p $(BUILD_DIR)/diagnostics/$(ARCH)
+	$(CC_ARCH) -std=c17 -O2 -Wall -Wextra -Werror diagnostics/zn_manifest_check.c \
+		-o $(BUILD_DIR)/diagnostics/$(ARCH)/zn-manifest-check

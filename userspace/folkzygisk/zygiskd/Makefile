@@ -27,11 +27,12 @@ ZYGISKD_CFLAGS = -D_GNU_SOURCE -std=c99 -Wpedantic -Wall -Wextra -Werror  \
 
 SRCS = src/root_impl/apatch.c src/root_impl/common.c        \
 	   src/root_impl/kernelsu.c src/root_impl/magisk.c      \
-	   src/companion.c src/main.c src/utils.c src/zygiskd.c
+	   src/companion.c src/main.c src/utils.c src/zygiskd.c \
+	   src/zn_plan.c
 
 OBJS = $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 BIN = $(OBJ_DIR)/zygiskd
-INCLUDES = -Isrc -Isrc/root_impl -I../include
+INCLUDES = -Isrc -Isrc/root_impl -I../include -I../loader/src/include
 
 .PHONY: all arch clean
 
@@ -55,3 +56,5 @@ $(OBJ_DIR)/%.o: src/%.c ../include/folkzygisk_paths.h
 $(BIN): $(OBJS)
 	@mkdir -p $(dir $@)
 	$(CC_ARCH) $(TYPE_LDFLAGS) $(OBJS) -llog -o $@
+
+$(OBJ_DIR)/companion.o: ../loader/src/include/zygisk_next_api.h

@@ -5,7 +5,9 @@
 #define FOLKZYGISK_PATHS_H
 
 #define FOLKZYGISK_ENGINE_DIR "/data/adb/ksu/bin/folkzygisk"
+#ifndef FOLKZYGISK_RUNTIME_DIR
 #define FOLKZYGISK_RUNTIME_DIR "/data/adb/ksu/.zygisk"
+#endif
 #define FOLKZYGISK_STATE_FILE FOLKZYGISK_RUNTIME_DIR "/state.json"
 #define FOLKZYGISK_MONITOR_LOCK FOLKZYGISK_RUNTIME_DIR "/monitor.lock"
 #define FOLKZYGISK_DAEMON_BASE FOLKZYGISK_ENGINE_DIR "/bin/zygiskd"

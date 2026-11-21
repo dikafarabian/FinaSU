@@ -15,15 +15,21 @@
 #define LOG_TAG "zygiskd-companion" LP_SELECT("32", "64")
 
 #include "utils.h"
+#include "zygisk_next_api.h"
 
 typedef void (*zygisk_companion_entry)(int);
 
-struct companion_module_thread_args {
-  int fd;
-  zygisk_companion_entry entry;
+struct companion_entrypoints {
+  void (*loaded)(void);
+  void (*connected)(int fd);
 };
 
-zygisk_companion_entry load_module(int fd) {
+struct companion_module_thread_args {
+  int fd;
+  struct companion_entrypoints entry;
+};
+
+static bool load_module(int fd, struct companion_entrypoints *out) {
   char path[PATH_MAX];
   snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
 
@@ -31,19 +37,35 @@ zygisk_companion_entry load_module(int fd) {
   if (!handle) {
     LOGE("Failed to dlopen module: %s", dlerror());
 
-    return NULL;
+    return false;
   }
 
   void *entry = dlsym(handle, "zygisk_companion_entry");
-  if (!entry) {
-    LOGE("Failed to dlsym zygisk_companion_entry: %s", dlerror());
+  if (entry) {
+    out->loaded = NULL;
+    out->connected = (zygisk_companion_entry)entry;
 
-    dlclose(handle);
-
-    return NULL;
+    return true;
   }
 
-  return (zygisk_companion_entry)entry;
+  const struct ZygiskNextCompanionModule *zn = dlsym(handle, "zn_companion_module");
+  if (zn && (zn->target_api_version < 1 || zn->target_api_version > ZYGISK_NEXT_API_VERSION)) {
+    LOGE("Unsupported ZN companion API version %d", zn->target_api_version);
+    dlclose(handle);
+    return false;
+  }
+  if (zn && zn->onCompanionLoaded && zn->onModuleConnected) {
+    out->loaded = zn->onCompanionLoaded;
+    out->connected = zn->onModuleConnected;
+
+    return true;
+  }
+
+  LOGE("No companion entry point in module");
+
+  dlclose(handle);
+
+  return false;
 }
 
 /* WARNING: Dynamic memory based */
@@ -51,7 +73,7 @@ void *entry_thread(void *arg) {
   struct companion_module_thread_args *args = (struct companion_module_thread_args *)arg;
 
   int fd = args->fd;
-  zygisk_companion_entry module_entry = args->entry;
+  void (*module_entry)(int) = args->entry.connected;
 
   struct stat st0 = { 0 };
   if (fstat(fd, &st0) == -1) {
@@ -103,10 +125,11 @@ void companion_entry(int fd) {
 
   LOGI(" - Library fd: %d", library_fd);
 
-  zygisk_companion_entry module_entry = load_module(library_fd);
+  struct companion_entrypoints entrypoints = { 0 };
+  bool loaded = load_module(library_fd, &entrypoints);
   close(library_fd);
 
-  if (module_entry == NULL) {
+  if (!loaded) {
     LOGE(" - No companion module entry for module: %s", name);
 
     ret = write_uint8_t(fd, 0);
@@ -115,6 +138,8 @@ void companion_entry(int fd) {
     goto cleanup;
   } else {
     LOGI(" - Module entry found");
+
+    if (entrypoints.loaded) entrypoints.loaded();
 
     ret = write_uint8_t(fd, 1);
     ASSURE_SIZE_WRITE("ZygiskdCompanion", "module_entry", ret, sizeof(uint8_t), goto cleanup);
@@ -147,7 +172,7 @@ void companion_entry(int fd) {
     }
 
     args->fd = client_fd;
-    args->entry = module_entry;
+    args->entry = entrypoints;
 
     LOGI("New companion request.\n - Module name: %s\n - Client fd: %d\n", name, client_fd);
 

@@ -16,6 +16,7 @@
 #include "root_impl/kernelsu.h"
 #include "utils.h"
 #include "folkzygisk_paths.h"
+#include "zn_plan.h"
 
 struct Module {
   char *name;
@@ -162,6 +163,60 @@ static int create_daemon_socket(void) {
   set_socket_create_context("u:r:zygote:s0");
 
   return unix_listener_from_path(PATH_CP_NAME);
+}
+
+#define ZN_COMPANION_MAX 8
+
+struct zn_companion {
+  char path[PATH_MAX];
+  int fd;
+};
+
+static int spawn_companion(char *restrict argv[], char *restrict name, int lib_fd);
+
+static struct zn_companion zn_companions[ZN_COMPANION_MAX];
+static size_t zn_companion_count;
+
+static void zn_companions_close(void) {
+  for (size_t i = 0; i < zn_companion_count; ++i) {
+    close(zn_companions[i].fd);
+    zn_companions[i].fd = -1;
+  }
+  zn_companion_count = 0;
+}
+
+static int zn_companion_for(char *restrict argv[], const char *path, int lib_fd) {
+  for (size_t i = 0; i < zn_companion_count; ++i) {
+    if (strcmp(zn_companions[i].path, path) == 0) return zn_companions[i].fd;
+  }
+  if (zn_companion_count >= ZN_COMPANION_MAX || strlen(path) >= sizeof(zn_companions[0].path))
+    return -1;
+
+  char label[PATH_MAX];
+  snprintf(label, sizeof(label), "%s", path);
+  char *base = strrchr(label, '/');
+  int companion_fd = spawn_companion(argv, base ? base + 1 : label, lib_fd);
+
+  if (companion_fd < 0) return -1;
+
+  struct zn_companion *slot = &zn_companions[zn_companion_count++];
+  strcpy(slot->path, path);
+  slot->fd = companion_fd;
+
+  LOGI("Spawned ZN companion for \"%s\": %d", path, companion_fd);
+
+  return companion_fd;
+}
+
+static bool peer_may_load_zn(int client_fd) {
+  struct ucred peer;
+  socklen_t peer_size = sizeof(peer);
+
+  if (getsockopt(client_fd, SOL_SOCKET, SO_PEERCRED, &peer, &peer_size) != 0 ||
+      peer_size != sizeof(peer) || peer.pid <= 0)
+    return false;
+
+  return peer.uid == 0;
 }
 
 static int spawn_companion(char *restrict argv[], char *restrict name, int lib_fd) {
@@ -611,6 +666,121 @@ void zygiskd_start(char *restrict argv[]) {
 
         break;
       }
+      case ReadZnModules: {
+        if (!peer_may_load_zn(client_fd)) {
+          LOGE("Rejected ZN plan request from an unprivileged peer");
+          break;
+        }
+
+        char process[PROCESS_NAME_MAX_LEN] = { 0 };
+        char exe[PATH_MAX] = { 0 };
+
+        ssize_t ret = read_string(client_fd, process, sizeof(process));
+        if (ret == -1) {
+          LOGE("Failed reading ZN process name");
+          break;
+        }
+
+        ret = read_string(client_fd, exe, sizeof(exe));
+        if (ret == -1) {
+          LOGE("Failed reading ZN executable path");
+          break;
+        }
+
+        struct zn_plan plan;
+        size_t count = zn_plan_collect(&plan, PATH_MODULES_DIR, process, exe[0] ? exe : NULL);
+
+        ret = write_size_t(client_fd, count);
+        if (ret != sizeof(count)) {
+          zn_plan_close(&plan);
+          break;
+        }
+
+        for (size_t i = 0; i < count; ++i) {
+          struct zn_plan_entry *entry = &plan.entries[i];
+
+          ret = write_uint8_t(client_fd, entry->companion ? 1 : 0);
+          if (ret != sizeof(uint8_t)) break;
+          if (write_string(client_fd, entry->path) == -1) break;
+          if (write_fd(client_fd, entry->fd) == -1) {
+            LOGE("Failed sending ZN library \"%s\"", entry->path);
+            break;
+          }
+        }
+
+        zn_plan_close(&plan);
+
+        break;
+      }
+      case RequestZnCompanionSocket: {
+        if (!peer_may_load_zn(client_fd)) {
+          LOGE("Rejected ZN companion request from an unprivileged peer");
+          break;
+        }
+
+        char path[PATH_MAX];
+        struct zn_plan plan;
+        int companion_fd = -1;
+        if (read_string(client_fd, path, sizeof(path)) > 0) {
+          /* The caller's own manifest entry authorizes the companion, so the
+             spawner target is not assumed. */
+          struct ucred peer;
+          socklen_t peer_size = sizeof(peer);
+          char shown[PROCESS_NAME_MAX_LEN] = { 0 };
+          char exe[PATH_MAX] = { 0 };
+
+          if (getsockopt(client_fd, SOL_SOCKET, SO_PEERCRED, &peer, &peer_size) != 0 ||
+              peer_size != sizeof(peer) || peer.pid <= 0) {
+            LOGE("Cannot identify the ZN companion peer");
+            break;
+          }
+
+          char proc_exe[64];
+          snprintf(proc_exe, sizeof(proc_exe), "/proc/%d/exe", peer.pid);
+          ssize_t exe_len = readlink(proc_exe, exe, sizeof(exe) - 1);
+          if (exe_len <= 0) {
+            LOGE("Cannot resolve the ZN companion peer executable");
+            break;
+          }
+          exe[exe_len] = '\0';
+
+          const char *base = strrchr(exe, '/');
+          snprintf(shown, sizeof(shown), "%s", base ? base + 1 : exe);
+
+          zn_plan_collect(&plan, PATH_MODULES_DIR, shown, exe);
+          for (size_t i = 0; i < plan.count; ++i) {
+            if (!plan.entries[i].companion || strcmp(plan.entries[i].path, path) != 0) continue;
+            companion_fd = zn_companion_for(argv, path, plan.entries[i].fd);
+            break;
+          }
+          zn_plan_close(&plan);
+        }
+        if (companion_fd < 0) {
+          LOGE("ZN companion unavailable");
+
+          ssize_t ret = write_uint8_t(client_fd, 0);
+          (void)ret;
+
+          break;
+        }
+
+        if (write_fd(companion_fd, client_fd) == -1) {
+          LOGE("Failed handing off ZN companion socket for \"%s\"", path);
+
+          close(companion_fd);
+          for (size_t i = 0; i < zn_companion_count; ++i) {
+            if (zn_companions[i].fd == companion_fd) {
+              zn_companions[i] = zn_companions[--zn_companion_count];
+              break;
+            }
+          }
+
+          ssize_t ret = write_uint8_t(client_fd, 0);
+          (void)ret;
+        }
+
+        break;
+      }
       case GetModuleDir: {
         size_t index = 0;
         ssize_t ret = read_size_t(client_fd, &index);
@@ -720,6 +890,7 @@ void zygiskd_start(char *restrict argv[]) {
   }
 
   close(socket_fd);
+  zn_companions_close();
   free_modules(&context);
   root_impl_cleanup();
 }

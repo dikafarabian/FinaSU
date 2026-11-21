@@ -685,6 +685,15 @@ bool remote_csoloader_load_and_resolve_entry(int pid, struct user_regs_struct *r
                                              struct maps_info *remote_map, struct maps_info *local_map,
                                              const char *lib_path, uintptr_t *out_base,
                                              size_t *out_total_size, uintptr_t *out_entry) {
+  return remote_csoloader_load_and_resolve_symbol(pid, regs, remote_map, local_map, lib_path,
+                                                  "entry", out_base, out_total_size, out_entry);
+}
+
+bool remote_csoloader_load_and_resolve_symbol(int pid, struct user_regs_struct *regs,
+                                              struct maps_info *remote_map,
+                                              struct maps_info *local_map, const char *lib_path,
+                                              const char *symbol, uintptr_t *out_base,
+                                              size_t *out_total_size, uintptr_t *out_entry) {
   struct user_regs_struct regs_saved = *regs;
 
   long page_size_long = sysconf(_SC_PAGESIZE);
@@ -1078,7 +1087,7 @@ bool remote_csoloader_load_and_resolve_entry(int pid, struct user_regs_struct *r
   }
 
   ElfW(Addr) entry_value = 0;
-  if (!find_dynsym_value(fd, &dinfo, "entry", &entry_value)) {
+  if (!find_dynsym_value(fd, &dinfo, symbol, &entry_value)) {
     LOGE("Failed to resolve entry from ELF dynsym");
 
     free((void *)needed_paths);

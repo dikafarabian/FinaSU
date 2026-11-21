@@ -358,5 +358,62 @@ bool rezygiskd_remove_module(size_t index) {
   return res == 1;
 }
 
+size_t rezygiskd_read_zn_modules(const char *process, const char *exe,
+                                 struct zn_module_ref *refs, size_t capacity) {
+  int fd = rezygiskd_connect(1);
+  if (fd == -1) return 0;
+
+  safe_write(write_uint8_t(fd, (uint8_t)ReadZnModules), "ReadZnModules action", return 0);
+  safe_write(write_string(fd, process), "process name", return 0);
+  safe_write(write_string(fd, exe), "executable path", return 0);
+
+  size_t len = 0;
+  safe_read(read_size_t(fd, &len), "zn module count", return 0);
+
+  size_t accepted = 0;
+  for (size_t i = 0; i < len; i++) {
+    uint8_t companion = 0;
+    if (read_uint8_t(fd, &companion) == -1) break;
+
+    char *path = read_string(fd);
+    int library_fd = read_fd(fd);
+    if (path == NULL || library_fd == -1) {
+      free(path);
+      if (library_fd != -1) close(library_fd);
+      break;
+    }
+
+    if (accepted < capacity && strlen(path) < sizeof(refs[0].path)) {
+      strcpy(refs[accepted].path, path);
+      refs[accepted].fd = library_fd;
+      refs[accepted].companion = companion == 1;
+      ++accepted;
+    } else {
+      close(library_fd);
+    }
+
+    free(path);
+  }
+
+  close(fd);
+  return accepted;
+}
+
+int rezygiskd_request_zn_companion(const char *path) {
+  int fd = rezygiskd_connect(1);
+  if (fd == -1) return -1;
+
+  safe_write(write_uint8_t(fd, (uint8_t)RequestZnCompanionSocket), "RequestZnCompanionSocket action", return -1);
+  safe_write(write_string(fd, path), "zn library path", return -1);
+
+  uint8_t res = 0;
+  safe_read(read_uint8_t(fd, &res), "zn companion result", return -1);
+
+  if (res == 1) return fd;
+
+  close(fd);
+  return -1;
+}
+
 #undef safe_read
 #undef safe_write

@@ -19,6 +19,9 @@
 
 #include "monitor.h"
 
+
+
+
 #define SOCKET_NAME "init_monitor"
 
 #define STOPPED_WITH(sig, event) (WIFSTOPPED(sigchld_status) && (sigchld_status >> 8 == ((sig) | ((event) << 8))))
@@ -701,6 +704,7 @@ void sigchld_listener_callback() {
       CHECK_DAEMON_EXIT(32)
 
       pid_t state = 0;
+      bool zn_detached = false;
       for (size_t i = 0; i < sigchld_process_count; i++) {
         if (sigchld_process[i] != pid) continue;
 
@@ -815,6 +819,7 @@ void sigchld_listener_callback() {
               }
             }
           } while (false);
+
         } else {
           char status_str[64];
           parse_status(sigchld_status, status_str, sizeof(status_str));

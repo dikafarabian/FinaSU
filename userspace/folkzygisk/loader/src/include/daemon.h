@@ -14,7 +14,17 @@ enum rezygiskd_actions {
   GetModuleDir,
   ZygoteRestart,
   UpdateMountNamespace,
-  RemoveModule
+  RemoveModule,
+  ReadZnModules,
+  RequestZnCompanionSocket
+};
+
+#define ZN_LIB_MAX 512
+
+struct zn_module_ref {
+  char path[ZN_LIB_MAX];
+  int fd;
+  bool companion;
 };
 
 struct zygisk_modules {
@@ -63,6 +73,11 @@ void free_modules(struct zygisk_modules *modules);
 int rezygiskd_connect_companion(size_t index);
 
 int rezygiskd_get_module_dir(size_t index);
+
+size_t rezygiskd_read_zn_modules(const char *process, const char *exe,
+                                 struct zn_module_ref *refs, size_t capacity);
+
+int rezygiskd_request_zn_companion(const char *path);
 
 void rezygiskd_zygote_restart();
 

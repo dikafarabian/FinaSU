@@ -4,6 +4,15 @@
 
 #include "hook.h"
 #include "ptrace_clear.h"
+#include "zn_api.h"
+
+__attribute__((visibility("default")))
+void zn_entry(void *addr, size_t size) {
+  start_addr = addr;
+  block_size = size;
+
+  zn_load_modules();
+}
 
 __attribute__((visibility("default")))
 void entry(void *addr, size_t size, int tango_flag) {
