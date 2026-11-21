@@ -944,9 +944,12 @@ static void spawner_launch_tracer(pid_t pid) {
    regular usap pool shares the cmdline but not the image. */
 static void *spawner_scan_thread(void *unused) {
   (void)unused;
+  unsigned scans = 0;
 
   while (1) {
-    sleep(3);
+    /* The pool forks app processes right after boot, so the first scans must
+       beat them; afterwards nothing new appears quickly. */
+    if (scans++) sleep(scans < 30 ? 1 : 3);
 
     if (!spawner_runtime_enabled() || !spawner_declared()) continue;
 
@@ -975,7 +978,15 @@ static void *spawner_scan_thread(void *unused) {
       spawner_remember(pid, start);
       if (spawner_pid_has_lib(pid)) continue;
 
-      LOGI("zn spawner scan: attaching %d", pid);
+      char comm[64] = { 0 };
+      snprintf(link, sizeof(link), "/proc/%d/comm", pid);
+      FILE *comm_file = fopen(link, "re");
+      if (comm_file != NULL) {
+        if (fgets(comm, sizeof(comm), comm_file) != NULL) comm[strcspn(comm, "\n")] = '\0';
+        fclose(comm_file);
+      }
+
+      LOGI("zn spawner scan: attaching %d (%s)", pid, comm[0] != '\0' ? comm : "?");
       spawner_launch_tracer(pid);
     }
 
