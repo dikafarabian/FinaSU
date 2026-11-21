@@ -251,11 +251,13 @@ static const char *hyos_process_name(void) {
 }
 
 static void deliver_app_specialized(const char *package_name, const char *se_info) {
-  /* The callback belongs to the specialized child only. */
-  if (g_spawner_pid == 0 || (pid_t)syscall(__NR_getpid) == g_spawner_pid) return;
-  if (g_hyos_delivered || g_hyos_module_count == 0) return;
+  /* The pool forks children that specialize themselves, and some apps run in the
+     process the runtime was injected into, so the caller is always the app. */
+  if (g_spawner_pid == 0 || g_hyos_delivered || g_hyos_module_count == 0) return;
+  if (package_name == NULL || package_name[0] == '\0') return;
 
   g_hyos_delivered = true;
+  LOGI("ZN: app specialize %s in %d", package_name, (int)syscall(__NR_getpid));
 
   char process_name[256];
   char package_copy[256];
