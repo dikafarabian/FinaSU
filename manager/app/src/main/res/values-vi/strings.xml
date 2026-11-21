@@ -989,6 +989,8 @@
     <string name="settings_search_hint">Tìm cài đặt</string>
     <string name="settings_search_empty">Không tìm thấy cài đặt</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">Môi trường chạy HyperOS spawner</string>
+    <string name="folkzygisk_spawner_summary">Tải các mô-đun đã khai báo vào HyperOS spawner.</string>
     <string name="developer_and_maintainer">Nhà phát triển | Người bảo trì</string>
     <string name="developer_profile_picture">Ảnh đại diện của nhà phát triển</string>
     <string name="support_or_donate">Hỗ trợ / Quyên góp</string>
@@ -1142,4 +1144,6 @@
     <string name="susfs_priority_missing">Chưa cài đặt hoặc tạm thời không đọc được</string>
     <string name="susfs_priority_load_error">Không thể tải danh sách ứng dụng.</string>
     <string name="susfs_priority_empty">Không có ứng dụng phù hợp.</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

@@ -999,6 +999,8 @@
     <string name="settings_search_hint">搜索设置喵</string>
     <string name="settings_search_empty">没有找到相关设置喵</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">HyperOS spawner 运行时</string>
+    <string name="folkzygisk_spawner_summary">把已声明的模块加载进 HyperOS spawner。</string>
     <string name="developer_and_maintainer">开发者喵 | 维护者喵</string>
     <string name="developer_profile_picture">开发者喵像</string>
     <string name="support_or_donate">支持喵 / 捐赠喵</string>
@@ -1142,4 +1144,6 @@
     <string name="susfs_priority_missing">当前没装，或暂时读不到喵</string>
     <string name="susfs_priority_load_error">应用列表读取失败喵。</string>
     <string name="susfs_priority_empty">没有找到匹配的应用喵。</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

@@ -989,6 +989,8 @@
     <string name="settings_search_hint">Cari pengaturan</string>
     <string name="settings_search_empty">Tidak ada pengaturan yang cocok</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">Runtime HyperOS spawner</string>
+    <string name="folkzygisk_spawner_summary">Muat modul yang dideklarasikan ke HyperOS spawner.</string>
     <string name="developer_and_maintainer">Pengembang | Pemelihara</string>
     <string name="developer_profile_picture">Foto profil pengembang</string>
     <string name="support_or_donate">Dukung / Donasi</string>
@@ -1142,4 +1144,6 @@
     <string name="susfs_priority_missing">Tidak terpasang atau sementara tidak tersedia</string>
     <string name="susfs_priority_load_error">Tidak dapat memuat daftar aplikasi.</string>
     <string name="susfs_priority_empty">Tidak ada aplikasi yang cocok.</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

@@ -149,6 +149,7 @@ data class SettingsScreenActions(
     val onSetFolkMountMode: (FolkMountMode) -> Unit,
     val onOpenNomount: () -> Unit,
     val onSetFolkZygiskEnabled: (Boolean) -> Unit,
+    val onSetSpawnerRuntime: (Boolean) -> Unit,
     val onRecoverFolkZygisk: () -> Unit,
     val onSetSuiEnabled: (Boolean) -> Unit,
     val onRepairSui: () -> Unit,

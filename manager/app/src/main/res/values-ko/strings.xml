@@ -989,6 +989,8 @@
     <string name="settings_search_hint">설정 검색</string>
     <string name="settings_search_empty">설정을 찾을 수 없습니다</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">HyperOS spawner 런타임</string>
+    <string name="folkzygisk_spawner_summary">선언된 모듈을 HyperOS spawner에 로드합니다.</string>
     <string name="developer_and_maintainer">개발자 | 유지보수자</string>
     <string name="developer_profile_picture">개발자 프로필 사진</string>
     <string name="support_or_donate">지원 / 후원</string>
@@ -1142,4 +1144,6 @@
     <string name="susfs_priority_missing">설치되지 않았거나 현재 읽을 수 없음</string>
     <string name="susfs_priority_load_error">앱 목록을 불러오지 못했습니다.</string>
     <string name="susfs_priority_empty">일치하는 앱이 없습니다.</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

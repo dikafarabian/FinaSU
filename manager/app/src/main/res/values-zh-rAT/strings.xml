@@ -999,6 +999,8 @@
     <string name="settings_search_hint">搜寻神谕</string>
     <string name="settings_search_empty">未寻得相关神谕</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">HyperOS spawner 聖儀</string>
+    <string name="folkzygisk_spawner_summary">引已宣之模組入 HyperOS spawner 聖域。</string>
     <string name="developer_and_maintainer">圣光使者 | 圣域守护者</string>
     <string name="developer_profile_picture">开发者圣像</string>
     <string name="support_or_donate">神力支持 / 圣光捐赠</string>
@@ -1142,4 +1144,6 @@
     <string name="susfs_priority_missing">未安装或暂不可得</string>
     <string name="susfs_priority_load_error">应用名录读取不得。</string>
     <string name="susfs_priority_empty">未有相合之应用。</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

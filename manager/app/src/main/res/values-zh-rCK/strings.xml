@@ -999,6 +999,8 @@
     <string name="settings_search_hint">翻找秘籍</string>
     <string name="settings_search_empty">没翻到相关条目</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">HyperOS spawner 灶台</string>
+    <string name="folkzygisk_spawner_summary">把已聲明的模組上到 HyperOS spawner 灶上。</string>
     <string name="developer_and_maintainer">掌勺大厨 | 传人</string>
     <string name="developer_profile_picture">开发者招牌</string>
     <string name="support_or_donate">支持 / 打赏</string>
@@ -1142,4 +1144,6 @@
     <string name="susfs_priority_missing">当前没装，或暂时读不到</string>
     <string name="susfs_priority_load_error">应用菜单读取失败。</string>
     <string name="susfs_priority_empty">没找到匹配的应用。</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

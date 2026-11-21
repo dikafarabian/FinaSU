@@ -993,6 +993,8 @@ Przed kontynuowaniem upewnij się, że bootloader jest odblokowany!</string>
     <string name="settings_search_hint">Szukaj ustawień</string>
     <string name="settings_search_empty">Nie znaleziono ustawień</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">Środowisko uruchomieniowe HyperOS spawner</string>
+    <string name="folkzygisk_spawner_summary">Ładuje zadeklarowane moduły do HyperOS spawner.</string>
     <string name="developer_and_maintainer">Deweloper | Opiekun</string>
     <string name="developer_profile_picture">Zdjęcie profilowe dewelopera</string>
     <string name="support_or_donate">Wsparcie / Darowizna</string>
@@ -1146,4 +1148,6 @@ Przed kontynuowaniem upewnij się, że bootloader jest odblokowany!</string>
     <string name="susfs_priority_missing">Nie zainstalowano lub chwilowo niedostępna</string>
     <string name="susfs_priority_load_error">Nie można wczytać listy aplikacji.</string>
     <string name="susfs_priority_empty">Brak pasujących aplikacji.</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

@@ -991,6 +991,8 @@
     <string name="settings_search_hint">Pesquisar configurações</string>
     <string name="settings_search_empty">Nenhuma configuração encontrada</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">Runtime do HyperOS spawner</string>
+    <string name="folkzygisk_spawner_summary">Carrega os módulos declarados no HyperOS spawner.</string>
     <string name="developer_and_maintainer">Desenvolvedor | Mantenedor</string>
     <string name="developer_profile_picture">Foto de perfil do desenvolvedor</string>
     <string name="support_or_donate">Apoiar / Doar</string>
@@ -1144,4 +1146,6 @@
     <string name="susfs_priority_missing">Não instalado ou temporariamente indisponível</string>
     <string name="susfs_priority_load_error">Não foi possível carregar a lista de aplicativos.</string>
     <string name="susfs_priority_empty">Nenhum aplicativo correspondente.</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

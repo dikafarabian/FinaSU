@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import me.weishu.kernelsu.R
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
@@ -80,6 +81,18 @@ internal fun FolkZygiskStatusItem(state: SettingsUiState, actions: SettingsScree
         enabled = status != null && !state.folkZygiskReadError && !state.isFolkZygiskLoading && !state.isFolkZygiskWriting,
         onCheckedChange = { actions.onSetFolkZygiskEnabled(it) },
     )
+    if (status?.enabled == true) {
+        SegmentedSwitchItem(
+            icon = Icons.Filled.Android,
+            title = stringResource(R.string.settings_folk_zygisk_spawner),
+            summary = stringResource(R.string.folkzygisk_spawner_summary),
+            checked = status.spawnerRuntime,
+            enabled = !state.folkZygiskReadError &&
+                !state.isFolkZygiskLoading &&
+                !state.isFolkZygiskWriting,
+            onCheckedChange = { actions.onSetSpawnerRuntime(it) },
+        )
+    }
     if (showFolkZygiskRecovery(state)) {
         SegmentedListItem(
             headlineContent = { Text(stringResource(R.string.folkzygisk_recover)) },

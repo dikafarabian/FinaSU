@@ -999,6 +999,8 @@
     <string name="settings_search_hint">搜寻天机</string>
     <string name="settings_search_empty">未窥得相关天机</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">HyperOS spawner 靈台</string>
+    <string name="folkzygisk_spawner_summary">引已宣之模組入 HyperOS spawner。</string>
     <string name="developer_and_maintainer">道门尊长 | 护道者</string>
     <string name="developer_profile_picture">开发者仙容</string>
     <string name="support_or_donate">道力支持 / 仙石捐赠</string>
@@ -1142,4 +1144,6 @@
     <string name="susfs_priority_missing">尚未入册或一时无法读取</string>
     <string name="susfs_priority_load_error">应用名录读取失败。</string>
     <string name="susfs_priority_empty">未见契合之应用。</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

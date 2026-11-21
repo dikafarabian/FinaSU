@@ -991,6 +991,8 @@
     <string name="settings_search_hint">Поиск настроек</string>
     <string name="settings_search_empty">Настройки не найдены</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">Среда выполнения HyperOS spawner</string>
+    <string name="folkzygisk_spawner_summary">Загружает объявленные модули в HyperOS spawner.</string>
     <string name="developer_and_maintainer">Разработчик | Сопровождающий</string>
     <string name="developer_profile_picture">Фото профиля разработчика</string>
     <string name="support_or_donate">Поддержка / Пожертвование</string>
@@ -1144,4 +1146,6 @@
     <string name="susfs_priority_missing">Не установлено или временно недоступно</string>
     <string name="susfs_priority_load_error">Не удалось загрузить список приложений.</string>
     <string name="susfs_priority_empty">Подходящих приложений нет.</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

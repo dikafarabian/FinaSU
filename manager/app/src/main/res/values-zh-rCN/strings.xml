@@ -1033,6 +1033,8 @@
     <string name="settings_search_hint">搜索设置</string>
     <string name="settings_search_empty">未找到相关设置</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">HyperOS spawner 运行时</string>
+    <string name="folkzygisk_spawner_summary">把已声明的模块加载进 HyperOS spawner。</string>
     <string name="developer_and_maintainer">开发者 | 维护者</string>
     <string name="developer_profile_picture">开发者头像</string>
     <string name="support_or_donate">支持 / 捐赠</string>
@@ -1142,4 +1144,6 @@
     <string name="susfs_priority_missing">应用未安装或暂时无法读取</string>
     <string name="susfs_priority_load_error">无法读取应用列表。</string>
     <string name="susfs_priority_empty">没有匹配的应用。</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

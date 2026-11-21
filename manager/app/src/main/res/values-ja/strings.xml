@@ -989,6 +989,8 @@
     <string name="settings_search_hint">設定を検索</string>
     <string name="settings_search_empty">設定が見つかりません</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">HyperOS spawner ランタイム</string>
+    <string name="folkzygisk_spawner_summary">宣言されたモジュールを HyperOS spawner に読み込みます。</string>
     <string name="developer_and_maintainer">開発者 | メンテナ</string>
     <string name="developer_profile_picture">開発者のプロフィール画像</string>
     <string name="support_or_donate">サポート / 寄付</string>
@@ -1142,4 +1144,6 @@
     <string name="susfs_priority_missing">未インストール、または現在読み取れません</string>
     <string name="susfs_priority_load_error">アプリ一覧を読み込めませんでした。</string>
     <string name="susfs_priority_empty">一致するアプリはありません。</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>

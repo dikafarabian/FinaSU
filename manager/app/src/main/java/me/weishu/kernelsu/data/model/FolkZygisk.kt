@@ -15,6 +15,7 @@ data class FolkZygiskStatus(
     val startupFailureCode: String?,
     val startupFailureDetail: String?,
     val startupGeneration: Long,
+    val spawnerRuntime: Boolean = false,
 ) {
     /**
      * Whether anything is actually injecting through Zygisk, the same test the home card uses to

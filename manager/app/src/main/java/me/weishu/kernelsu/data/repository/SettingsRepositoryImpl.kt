@@ -433,6 +433,16 @@ class SettingsRepositoryImpl : SettingsRepository {
             }
         }
 
+    override suspend fun setSpawnerRuntime(enabled: Boolean): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                requireKsud(
+                    execKsudResult("zygisk spawner-runtime $enabled"),
+                    "HyperOS spawner configuration failed",
+                )
+            }
+        }
+
     override suspend fun recoverFolkZygisk(): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             requireKsud(

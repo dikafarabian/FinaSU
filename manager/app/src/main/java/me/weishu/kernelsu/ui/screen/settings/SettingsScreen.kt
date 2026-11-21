@@ -106,6 +106,7 @@ fun rememberSettingsActions(
         onSetFolkMountMode = onSetFolkMountMode,
         onOpenNomount = { navigator.push(Route.Nomount) },
         onSetFolkZygiskEnabled = viewModel::setFolkZygiskEnabled,
+        onSetSpawnerRuntime = viewModel::setSpawnerRuntime,
         onRecoverFolkZygisk = viewModel::recoverFolkZygisk,
         onSetSuiEnabled = viewModel::setSuiEnabled,
         onRepairSui = viewModel::repairSui,

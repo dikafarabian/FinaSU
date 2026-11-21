@@ -991,6 +991,8 @@
     <string name="settings_search_hint">البحث في الإعدادات</string>
     <string name="settings_search_empty">لا توجد إعدادات مطابقة</string>
     <string name="settings_folk_zygisk">FolkZygisk</string>
+    <string name="settings_folk_zygisk_spawner">وقت تشغيل HyperOS spawner</string>
+    <string name="folkzygisk_spawner_summary">تحميل الوحدات المعلنة في HyperOS spawner.</string>
     <string name="developer_and_maintainer">المطور | المشرف</string>
     <string name="developer_profile_picture">الصورة الرمزية للمطور</string>
     <string name="support_or_donate">دعم / تبرع</string>
@@ -1144,4 +1146,6 @@
     <string name="susfs_priority_missing">غير مثبّت أو غير متاح مؤقتًا</string>
     <string name="susfs_priority_load_error">تعذّر تحميل قائمة التطبيقات.</string>
     <string name="susfs_priority_empty">لا توجد تطبيقات مطابقة.</string>
+    <string name="sort_asc">A → Z</string>
+    <string name="sort_desc">Z → A</string>
 </resources>
