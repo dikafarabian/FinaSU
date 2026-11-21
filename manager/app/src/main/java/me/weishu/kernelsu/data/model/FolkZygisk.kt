@@ -64,6 +64,7 @@ data class FolkZygiskStatus(
                 startupFailureCode = nullableString("startup_failure_code"),
                 startupFailureDetail = nullableString("startup_failure_detail"),
                 startupGeneration = json.optLong("startup_generation", 0),
+                spawnerRuntime = json.optBoolean("spawner_runtime", false),
             )
         }
     }

@@ -60,6 +60,13 @@ class FolkZygiskTest {
         assertEquals(null, status.startupFailureDetail)
     }
 
+    @Test fun spawnerSwitchReflectsTheConfiguredValue() {
+        assertFalse(FolkZygiskStatus.fromJson(payload()).spawnerRuntime)
+        assertTrue(
+            FolkZygiskStatus.fromJson(payload().put("spawner_runtime", true)).spawnerRuntime,
+        )
+    }
+
     @Test fun implementationAvailabilityRequiresTheEngineOrAnExternalProvider() {
         val disabled = FolkZygiskStatus.fromJson(payload())
         assertFalse(disabled.providesImplementation())
