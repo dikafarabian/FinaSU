@@ -28,6 +28,7 @@ struct zn_handle {
   uint32_t magic;
   char path[ZN_LIB_MAX];
   bool companion;
+  int companion_fd;
 };
 
 struct zn_loaded {
@@ -362,6 +363,13 @@ static int zn_connect_companion(void *handle) {
   struct zn_handle *entry = handle;
   if (!entry || entry->magic != ZN_HANDLE_MAGIC || !entry->companion) return -1;
 
+  /* The socket lives under /data/adb, which a specialised app process cannot
+     reach, so the connection is made while the process still can. */
+  if (entry->companion_fd >= 0) {
+    int fd = dup(entry->companion_fd);
+    return fd >= 0 ? fd : entry->companion_fd;
+  }
+
   return rezygiskd_request_zn_companion(entry->path);
 }
 
@@ -437,6 +445,11 @@ void zn_load_modules(void) {
     slot->handle.magic = ZN_HANDLE_MAGIC;
     strcpy(slot->handle.path, ref->path);
     slot->handle.companion = ref->companion;
+    slot->handle.companion_fd = -1;
+    if (ref->companion) {
+      slot->handle.companion_fd = rezygiskd_request_zn_companion(ref->path);
+      if (slot->handle.companion_fd < 0) LOGE("ZN: %s companion unavailable", ref->path);
+    }
     ++g_module_count;
 
     close(ref->fd);
